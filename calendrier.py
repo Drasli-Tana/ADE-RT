@@ -4,6 +4,7 @@ import random as RD
 import requests
 import PIL.Image as PI
 import PIL.ImageDraw as PID
+from PIL import ImageFont
 
 import projet10 as PJ
 
@@ -44,19 +45,23 @@ def parse_event(event: str, **kwargs):
 events = [parse_event(event, toCsv=False, code=False)
           for event in PJ.extract_events(getEvents(None, None, False))]
 
-base = PI.new("RGB", (800, 600))
+base = PI.new("RGB", (961, 600))
 rectangles = PID.Draw(base)
-
+font = ImageFont.truetype("arial.ttf", 12)
 
 for event in events:
     ecart = event.get("DTSTART") - lundi_8h
 
     rectangles.rectangle(
-        [(ecart.days * 160, ecart.seconds / 60), 
-        ((ecart.days + 1) * 160, (ecart.seconds + event["DUREE"].seconds) / 60)])
+        [((ecart.days + 1) * 160, ecart.seconds / 60), 
+        ((ecart.days + 2) * 160, (ecart.seconds + event["DUREE"].seconds) / 60)])
 
     rectangles.text(
-        (ecart.days * 160, ecart.seconds / 60), event["SUMMARY"])
+        (
+            (ecart.days + 1.5) * 160,
+            (ecart.seconds + event["DUREE"].seconds / 2) / 60),
+        event["SUMMARY"],
+        anchor="mm", align="center", font=font)
 """
 rectangles.rectangle([(0, 0), (160, 60)])
 rectangles.rectangle([(0, 60), (160, 120)])
