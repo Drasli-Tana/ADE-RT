@@ -1,0 +1,24 @@
+{
+    "base_url": "https://ade-uga-ro-vs.grenet.fr/jsp/custom/modules/plannings/anonymous_cal.jsp",
+    "project_id": "5",
+    "guild": "1025728672784732270",
+
+    "channels": {
+        "1025732055125983332": {
+            "group": "B2G1",
+            "ade_resource": "49470"
+        },
+        "1025736509204213760": {
+            "group": "B2G2",
+            "ade_resource": "49515"
+        },
+        "1025740795141173309": {
+            "group": "B2GA",
+            "ade_resource": "49473"
+        },
+        "1056251433239990324":{
+            "group" : "B2GA",
+            "ade_resource": "49473"
+        }
+    }
+}

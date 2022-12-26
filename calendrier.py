@@ -18,7 +18,7 @@ import projet10 as PJ
 class ADEBot(DC.Bot):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        with open("config.json", mode='r') as file:
+        with open("resources/config.json", mode='r') as file:
             self.config = json.load(file)
 
         self.font = PIF.truetype("arial.ttf", 11)
@@ -48,7 +48,7 @@ class ADEBot(DC.Bot):
 
             hashs[resource] = hashed
 
-            with open("hashs.json", mode='w') as file:
+            with open("resources/hashs.json", mode='w') as file:
                 json.dump(hashs, file, indent=4)
 
             return cal.content.decode("utf-8").replace("\n ", "").replace(
@@ -65,7 +65,7 @@ class ADEBot(DC.Bot):
 
         And that's all.
         """
-        with open("hashs.json") as file:
+        with open("resources/hashs.json") as file:
             hashs = json.load(file)
 
         return hashs.get(resource, "") != content_hash
@@ -134,7 +134,7 @@ class ADEBot(DC.Bot):
         Loads a base grid, inverted or not, and triggers the generation of
         it if it doesn't exists.
         """
-        filename = f"grid{'_inverted' if inverted else ''}.png"
+        filename = f"resources/grid{'_inverted' if inverted else ''}.png"
         
         return (PI.open(filename)
                 if os.path.exists(filename)
@@ -209,10 +209,10 @@ async def ade(interaction: DS.Interaction):
     if str(interaction.channel_id) not in bot.config["channels"]:
         await interaction.response.send_message(content="Channel invalide !")
         return
-
+    
     # retard SNCF
     await interaction.response.defer()
-
+    
     resource = bot.config["channels"][str(interaction.channel_id)]["ade_resource"]
     group = bot.config["channels"][str(interaction.channel_id)]["group"]
 
@@ -240,5 +240,6 @@ async def ade(interaction: DS.Interaction):
 
     await interaction.followup.send(file=file, embed=embed)
 
-bot.run("Token")
+with open("resources/token.json") as file:
+    bot.run(json.load(file)["token"])
 
