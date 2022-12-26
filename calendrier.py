@@ -1,86 +1,244 @@
 import datetime as DT
 import random as RD
+import locale as LC
+import hashlib
+import json
+import os
+
+import discord as DS
+import discord.ext.commands as DC
 
 import requests
 import PIL.Image as PI
 import PIL.ImageDraw as PID
-<<<<<<< HEAD
-from PIL import ImageFont
-=======
->>>>>>> b76aca8ac74d857be4cd8bb0b9775b923fdfeab1
+import PIL.ImageFont as PIF
 
 import projet10 as PJ
 
-URL_ADE = (
-    "https://ade-uga-ro-vs.grenet.fr/jsp/custom/modules/plannings/" +
-    "anonymous_cal.jsp")
-PROJECT_ID = "5"
-lundi_8h = DT.datetime(2022, 12, 5, 8)
-# I don't know if this will change or not, so let's put this in a constant
-def getEvents(dateStart, dateEnd, download=True):
-    if download or changed():
+class ADEBot(DC.Bot):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        with open("config.json", mode='r') as file:
+            self.config = json.load(file)
+
+        self.font = PIF.truetype("arial.ttf", 11)
+
+    async def on_ready(self):
+        await self.tree.sync()
+
+    def get_events(self, resource, dateStart, dateEnd, download=False):
         cal = requests.get(
-            URL_ADE, params={
-                "resources": "49473",       # Groupe
-                "projectId": PROJECT_ID,    # ??
-                "calType": "ical",          # Type: ICalendar
-                "firstDate": "2022-12-05",  # Lundi
-                "lastDate": "2022-12-10"})  # Samedi
+            self.config["base_url"],
+                params={
+                    "resources": resource,                   # Groupe
+                    "projectId": self.config["project_id"],  # ??
+                    "calType": "ical",                       # Type: ICalendar
+                    "firstDate": dateStart,                  # Lundi
+                    "lastDate": dateEnd})                    # Vendredi
+        
+        hashed = hashlib.md5(cal.content).hexdigest()
+        # Hashes the calendar, to enable use of a cached image
 
-        with open("calendrier.ics", mode="w") as file:
-            file.write(cal.content.decode("utf-8").replace("\n", ""))
-        # /!\ lines ends with \r\n - Take this in account when modifying (currently
-        # stripping it)
-        # This works, don't touch! Prevents carriage return in description.
+        if download or self.changed(resource, hashed):
+            # Procedure when the hash changed, or if a force download was
+            # requested: replaces the previously saved hash with the one
+            # computed at the beggining, then returns the new calendar.
+            with open("hashs.json") as file:
+                hashs = json.load(file)
 
-        return cal.content.decode("utf-8").replace("\n ", "").replace("\r", "")
+            hashs[resource] = hashed
 
-    else:
-         with open("calendrier.ics", mode="r") as file:
-            return file.read()
+            with open("hashs.json", mode='w') as file:
+                json.dump(hashs, file, indent=4)
 
-def changed():
-    return False
+            return cal.content.decode("utf-8").replace("\n ", "").replace(
+                "\r", "")
 
-def parse_event(event: str, **kwargs):
-    return PJ.parse_event(event, toCsv=False, code=False)
+        else:
+            # The hash is the same, and no force download was requested,
+            # Returns a flag value, that indicates the use of a saved planning
+            return None
 
-events = [parse_event(event, toCsv=False, code=False)
-          for event in PJ.extract_events(getEvents(None, None, False))]
+    def changed(self, resource, content_hash):
+        """
+        Checks whether a hash is different from the one saved or not.
 
-<<<<<<< HEAD
-base = PI.new("RGB", (961, 600))
-rectangles = PID.Draw(base)
-font = ImageFont.truetype("arial.ttf", 12)
-=======
-base = PI.new("RGB", (800, 600))
-rectangles = PID.Draw(base)
+        And that's all.
+        """
+        with open("hashs.json") as file:
+            hashs = json.load(file)
 
->>>>>>> b76aca8ac74d857be4cd8bb0b9775b923fdfeab1
+        return hashs.get(resource, "") != content_hash
 
-for event in events:
-    ecart = event.get("DTSTART") - lundi_8h
+    def parse_event(self, event: str, **kwargs):
+        """
+        This is a doc-string
+        """
+        return PJ.parse_event(event, toCsv=False, code=False)
 
-    rectangles.rectangle(
-<<<<<<< HEAD
-        [((ecart.days + 1) * 160, ecart.seconds / 60), 
-        ((ecart.days + 2) * 160, (ecart.seconds + event["DUREE"].seconds) / 60)])
+    def generate_grids(self, filename, inverted=False):
+        """
+        Generates a new base grid, with hours only.
+        
+        Colors depends of whether the inverted parameter is enabled or not
+        Inverted means grey lines, white background and black letters.
+        Non-inverted means grey lines, black background and white letters.
+        
+        Generated image is 881px wide, 671px tall.
 
-    rectangles.text(
-        (
-            (ecart.days + 1.5) * 160,
-            (ecart.seconds + event["DUREE"].seconds / 2) / 60),
-        event["SUMMARY"],
-        anchor="mm", align="center", font=font)
-=======
-        [(ecart.days * 160, ecart.seconds / 60), 
-        ((ecart.days + 1) * 160, (ecart.seconds + event["DUREE"].seconds) / 60)])
+        Saves as base.png when non inverted and base_inverted.png otherwise.
 
-    rectangles.text(
-        (ecart.days * 160, ecart.seconds / 60), event["SUMMARY"])
->>>>>>> b76aca8ac74d857be4cd8bb0b9775b923fdfeab1
-"""
-rectangles.rectangle([(0, 0), (160, 60)])
-rectangles.rectangle([(0, 60), (160, 120)])
-rectangles.text((0, 0), "test")"""
-base.show()
+        Don't look at this.
+        """
+        base = PI.new("RGB", (881, 671),
+            color=(255, 255, 255) if inverted else (0, 0, 0))
+        rectangles = PID.Draw(base)
+        start = DT.datetime(hours=8)
+
+        for i in range(1, 7):
+                rectangles.line(((i - .5) * 160, 0, (i - .5) * 160, 660),
+                    fill=(127, 127, 127))
+
+        ecart = DT.timedelta()
+        variation = DT.timedelta(minutes=30)
+
+        for i in range(1, 12):
+            heure_date = (start + ecart)
+            rectangles.text(
+                (10, (i) * 60),
+                heure_date.strftime("%Hh%M"),
+                anchor="lm", align="center", font=self.font,
+                fill=(0, 0, 0) if inverted else (255, 255, 255))
+
+            rectangles.line((50, i * 60, 961, i * 60), fill=(127, 127, 127))
+           
+            ecart += variation
+            heure_date = (start + ecart)
+            
+            rectangles.text(
+                (10, (i + .5) * 60),
+                heure_date.strftime("%Hh%M"),
+                anchor="lm", align="center", font=self.font,
+                fill=(0, 0, 0) if inverted else (255, 255, 255))
+            
+            rectangles.line((50, (i + .5) * 60, 961, (i + .5) * 60),
+                fill=(192, 192, 192) if inverted else (63, 63, 63))
+
+            ecart += variation
+
+        base.save(filename)
+        return base
+
+    def open_grid(self, inverted=False):
+        """
+        Loads a base grid, inverted or not, and triggers the generation of
+        it if it doesn't exists.
+        """
+        filename = f"grid{'_inverted' if inverted else ''}.png"
+        
+        return (PI.open(filename)
+                if os.path.exists(filename)
+                else generate_grids(filename, inverted))
+
+    def get_image(self, events, resource, start):
+        """
+        Returns a planning for the specified resource.
+
+        Resource means here the unique identifier on the server associated
+        with the group, and this ID is used to save an image, allowing it
+        to be reused later (cache)
+        """
+        if events is None:
+            # No change nor force download, using cached image
+            base = PI.open(f"cache/{resource}.png")
+
+        else:
+            base = self.open_grid(inverted)
+            rectangles = PID.Draw(base)
+
+            ecart = DT.timedelta()
+            variation = DT.timedelta(days=1)
+            for i in range(1, 7):
+                heure_date = (start + ecart).strftime("%A %d/%m/%Y").capitalize()
+                rectangles.text(
+                    (
+                        (i) * 160, 30),
+                    heure_date,
+                    anchor="mm", align="center", font=self.font, 
+                    fill=(0, 0, 0) if inverted else (255, 255, 255))
+                ecart += variation    
+
+            for event_unparsed in PJ.extract_events(events):
+                event = parse_event(event_unparsed, toCsv=False, code=False)
+
+                ecart = event.get("DTSTART") - start
+
+                rectangles.rectangle(
+                    [((ecart.days + .5) * 160, (ecart.seconds + 3600) / 60), 
+                    (
+                        (ecart.days + 1.5) * 160,
+                        (ecart.seconds + event["DUREE"].seconds + 3600) / 60)],
+                    fill=(255, 255, 255) if inverted else (0, 0, 0),
+                    outline=(0, 0, 0) if inverted else (255, 255, 255))
+
+                rectangles.text(
+                    (
+                        (ecart.days + 1) * 160,
+                        (ecart.seconds + event["DUREE"].seconds / 2 + 3600) / 60),
+                    "\n".join([event["SUMMARY"], event["LOCATION"].replace("\\|", "\n")]),
+                    anchor="mm", align="center", font=self.font,
+                    fill=(0, 0, 0) if inverted else (255, 255, 255))
+
+            base.save(f"cache/{resource}.png")
+
+        return events is None
+
+
+LC.setlocale(LC.LC_TIME, "")
+
+inverted = False 
+
+intents = DS.Intents.default()
+intents.message_content = True
+bot = ADEBot(command_prefix='!', intents=intents)
+
+@bot.tree.command(
+        name="ade",
+        description="Obtenir une capture d'écran de la semaine actuelle sur ADE.")
+async def ade(interaction: DS.Interaction):
+    if str(interaction.channel_id) not in bot.config["channels"]:
+        await interaction.response.send_message(content="Channel invalide !")
+        return
+
+    # retard SNCF
+    await interaction.response.defer()
+
+    resource = bot.config["channels"][str(interaction.channel_id)]["ade_resource"]
+    group = bot.config["channels"][str(interaction.channel_id)]["group"]
+
+    today = DT.datetime.today()
+    start = today - DT.timedelta(days=today.weekday())
+    end = start + DT.timedelta(days=4)
+    events = bot.get_events(
+        resource, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+    cache = bot.get_image(events, resource, start)
+
+    file = DS.File(f"cache/{resource}.png", filename="ade.png")
+
+    embed = DS.Embed()
+    embed.title = (
+        f"Emploi du temps ADE du {start.strftime('%d/%m/%Y')} au "
+        f"{end.strftime('%d/%m/%Y')} - Groupe {group}")
+    embed.color = 0xFF5733
+    embed.description = (
+        "Pour accéder directement à ADE, [cliquez ici]("
+        f"{bot.config['base_url']}). Si l'emploi du temps est vide veuillez "
+        "relancer la commande (merci ADE)." +
+        ("\nImage envoyée depuis le cache." if cache else ""))
+    embed.set_image(url=f"attachment://ade.png")
+    embed.set_footer(text="BUT RT 2022/2023")
+
+    await interaction.followup.send(file=file, embed=embed)
+
+bot.run("Token")
+
