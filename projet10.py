@@ -200,7 +200,6 @@ def main():
     export_markdown(traitement(parse_fichier_ics("data/S1G2.ics"), "S1G2"))
 
 
-
 if __name__ == '__main__':
     main()
 # Fin
