@@ -1,68 +1,21 @@
-# import datetime as DT
+import datetime as DT
+import random as RD
+import locale as LC
 import hashlib
 import json
-# import os
+import os
 
-# import discord as DS
-# import discord.ext.commands as DC
+import discord as DS
+import discord.ext.commands as DC
 
 import requests
-# import PIL.Image as PI
-# import PIL.ImageDraw as PID
-# import PIL.ImageFont as PIF
+import PIL.Image as PI
+import PIL.ImageDraw as PID
+import PIL.ImageFont as PIF
 
 import projet10 as PJ
+import utils
 
-def get_events(config, resource, dateStart, dateEnd, download=False):
-        cal = requests.get(
-            config["base_url"],
-                params={
-                    "resources": resource,                   # Groupe
-                    "projectId": config["project_id"],  # ??
-                    "calType": "ical",                       # Type: ICalendar
-                    "firstDate": dateStart,                  # Lundi
-                    "lastDate": dateEnd})                    # Vendredi
-        
-        hashed = hashlib.md5(cal.content).hexdigest()
-        # Hashes the calendar, to enable use of a cached image
-
-        if download or changed(resource, hashed):
-            # Procedure when the hash changed, or if a force download was
-            # requested: replaces the previously saved hash with the one
-            # computed at the beggining, then returns the new calendar.
-            with open("resources/hashs.json") as file:
-                hashs = json.load(file)
-
-            hashs[resource] = hashed
-
-            with open("resources/hashs.json", mode='w') as file:
-                json.dump(hashs, file, indent=4)
-
-            return cal.content.decode("utf-8").replace("\n ", "").replace(
-                "\r", "")
-
-        else:
-            # The hash is the same, and no force download was requested,
-            # Returns a flag value, that indicates the use of a saved planning
-            return None
-        
-def changed(resource, content_hash):
-    """
-    Checks whether a hash is different from the one saved or not.
-
-    And that's all.
-    """
-    with open("resources/hashs.json") as file:
-        hashs = json.load(file)
-
-    return hashs.get(resource, "") != content_hash
-
-def parse_event(event: str, **kwargs):
-        """
-        This is a doc-string
-        """
-        return PJ.parse_event(event, toCsv=False, code=False)
-'''
 class ADEBot(DC.Bot):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -74,9 +27,17 @@ class ADEBot(DC.Bot):
     async def on_ready(self):
         await self.tree.sync()
 
+    def get_events(self, resource, dateStart, dateEnd, download=False):
+        utils.get_events(self.config, resource, dateStart, dateEnd, download)
 
-#    def generate_grids(self, filename, inverted=False):
-"""
+    def parse_event(self, event: str, **kwargs):
+        """
+        This is a doc-string
+        """
+        return PJ.parse_event(event, toCsv=False, code=False)
+
+    def generate_grids(self, filename, inverted=False):
+        """
         Generates a new base grid, with hours only.
         
         Colors depends of whether the inverted parameter is enabled or not
@@ -89,7 +50,7 @@ class ADEBot(DC.Bot):
 
         Don't look at this.
         """
-"""       base = PI.new("RGB", (881, 671),
+        base = PI.new("RGB", (881, 671),
             color=(255, 255, 255) if inverted else (0, 0, 0))
         rectangles = PID.Draw(base)
         start = DT.datetime(hours=8)
@@ -129,10 +90,10 @@ class ADEBot(DC.Bot):
         return base
 
     def open_grid(self, inverted=False):
-        """"""
+        """
         Loads a base grid, inverted or not, and triggers the generation of
         it if it doesn't exists.
-        """"""
+        """
         filename = f"resources/grid{'_inverted' if inverted else ''}.png"
         
         return (PI.open(filename)
@@ -140,13 +101,13 @@ class ADEBot(DC.Bot):
                 else generate_grids(filename, inverted))
 
     def get_image(self, events, resource, start):
-        """"""
+        """
         Returns a planning for the specified resource.
 
         Resource means here the unique identifier on the server associated
         with the group, and this ID is used to save an image, allowing it
         to be reused later (cache)
-        """"""
+        """
         if events is None:
             # No change nor force download, using cached image
             base = PI.open(f"cache/{resource}.png")
@@ -242,5 +203,3 @@ async def ade(interaction: DS.Interaction):
 with open("resources/token.json") as file:
     bot.run(json.load(file)["token"])
 
-"""
-'''
